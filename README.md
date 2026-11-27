@@ -25,4 +25,4 @@ Ce projet propose une solution clé en main d'extraction, traitement et visualis
 | :---: | :---: |
 | ![Qualité](https://github.com/kmlkhatim/logistique_wms/blob/main/Logistique_WMS/Captures/2_Preparation_Qualite.png) | ![Transport](https://github.com/kmlkhatim/logistique_wms/blob/main/Logistique_WMS/Captures/3_Transport_Distribution.png) 
 
-# Par Kamal KHATIM
+### Par Kamal KHATIM
