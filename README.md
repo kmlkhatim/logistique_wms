@@ -23,10 +23,6 @@ Ce projet propose une solution clé en main d'extraction, traitement et visualis
 
 | Préparation & Qualité | Transport & Distribution |
 | :---: | :---: |
-| ![Qualité](https://github.com/kmlkhatim/logistique_wms/blob/main/Logistique_WMS/Captures/2_Preparation_Qualite.png) | ![Transport](https://github.com/kmlkhatim/logistique_wms/blob/main/Logistique_WMS/Captures/3_Transport_Distribution.png) |
+| ![Qualité](https://github.com/kmlkhatim/logistique_wms/blob/main/Logistique_WMS/Captures/2_Preparation_Qualite.png) | ![Transport](https://github.com/kmlkhatim/logistique_wms/blob/main/Logistique_WMS/Captures/3_Transport_Distribution.png) 
 
-## ⚙️ Installation & Exécution
-
-1. Cloner le dépôt :
-   ```bash
-   git clone [https://github.com/VOTRE_PSEUDO/Logistique_WMS.git](https://github.com/VOTRE_PSEUDO/Logistique_WMS.git)
+# Par Kamal KHATIM
