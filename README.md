@@ -19,11 +19,11 @@ Ce projet propose une solution clé en main d'extraction, traitement et visualis
 
 | Pilotage Entrepôt | Commandes & Service |
 | :---: | :---: |
-| ![Pilotage](https://github.com/kmlkhatim/logistique_wms/blob/main/Logistique_WMS/Captures/0_Pilotage_entrepot.png) | ![Commandes](Captures/1_Commandes_Service.png) |
+| ![Pilotage](https://github.com/kmlkhatim/logistique_wms/blob/main/Logistique_WMS/Captures/0_Pilotage_entrepot.png) | ![Commandes](https://github.com/kmlkhatim/logistique_wms/blob/main/Logistique_WMS/Captures/1_Commandes_Service.png) |
 
 | Préparation & Qualité | Transport & Distribution |
 | :---: | :---: |
-| ![Qualité](Captures/2_Preparation_Qualite.png) | ![Transport](Captures/3_Transport_Distribution.png) |
+| ![Qualité](https://github.com/kmlkhatim/logistique_wms/blob/main/Logistique_WMS/Captures/2_Preparation_Qualite.png) | ![Transport](https://github.com/kmlkhatim/logistique_wms/blob/main/Logistique_WMS/Captures/3_Transport_Distribution.png) |
 
 ## ⚙️ Installation & Exécution
 
