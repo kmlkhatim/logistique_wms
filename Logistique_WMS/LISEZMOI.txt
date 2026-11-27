@@ -1,0 +1,47 @@
+LOGISTIQUE_WMS - KPI de gestion logistique (entrepot, preparation, transport) -> dashboard HTML
+============================================================================================
+
+1. CONTENU
+  Donnees_WMS/   16 tables Excel de la base WMS (tb_*.xlsx). tb_Users (mots de passe) et tb_Audit_Logs ne sont pas utilisees.
+  Python/        generer_logistique.py + dashboard_logistique_template.html (+ lancer_logistique.command pour Mac)
+  Export/        dashboard_logistique.html (demo, Chart.js en ligne) + KPI_Logistique.xlsx (4 feuilles de KPI, filtrables)
+  Captures/      apercus des 4 pages
+
+2. UTILISATION
+  pip install -r Python/requirements.txt
+  python3 Python/generer_logistique.py --open       (Mac : double-clic sur Python/lancer_logistique.command)
+  Premiere fois avec internet : Chart.js est telecharge et integre (fichier HTML autonome, utilisable hors ligne).
+  Sans internet : --chartjs CHEMIN/chart.umd.js  ou  --cdn  (Chart.js charge en ligne).
+  Vos donnees : remplacer les tb_*.xlsx de Donnees_WMS (memes noms de fichiers et de colonnes) ou --source DOSSIER.
+
+3. PAGES (menu d'icones a gauche ; filtres Annee, Mois + Region ou Entrepot)
+  Pilotage entrepot (page d'accueil)  10 KPI sur UN ecran, 4 processus, feux vert / orange / rouge, 2 courbes mensuelles, alertes du jour cliquables :
+     Reception     delai dock-to-stock | receptions validees
+     Stockage      taux d'occupation (critique > 85 %) | fiabilite du stock | rotation du stock
+     Preparation   productivite picking | precision de preparation
+     Expedition    taux de service OTIF | temps de cycle | cout logistique par commande expediee (a saisir en haut de page)
+  Les 4 pages suivantes sont le detail :
+  Commandes & service      taux de livraison, OTD, cycle commande -> distribution, delais par etape, retards, top clients
+  Preparation & qualite    preparations par preparateur, delai, observations (casse, qualite, ecarts de stock, retards) a traiter
+  Transport & distribution distributions par region, OTD par region, chargements par camion, destinations
+  Stock & entrepots        occupation et saturation des emplacements, lignes sous min / rupture / surstock, zones chargees, valeur du stock
+
+4. REGLES DE CALCUL
+  Seuils des feux : constante T (et OBJ) en tete du <script> de dashboard_logistique_template.html. Gris = objectif non defini (a fixer par vous).
+  Limites des donnees (indicateurs approches, libelles « proxy » dans le dashboard) :
+   - Dock-to-stock       Date_Mise_en_Stock - Date_Reception en JOURS (aucune heure dans la base).
+   - Conformite reception  non mesurable (pas de colonne erreur/dommage a la reception) : on affiche le taux de receptions VALIDEES.
+   - Fiabilite du stock   pas d'inventaire physique : proxy = preparations sans observation « Ecart de stock ».
+   - Productivite picking  pas d'heures travaillees : lignes par preparateur et par jour d'activite.
+   - Precision de preparation  commandes sans observation Casse / Qualite / Ecart de stock.
+   - Rotation             valeur des sorties 12 mois (prix catalogue x quantite, commandes non annulees) / valeur du stock actuel (pas de stock moyen).
+   - OTIF                 distribuee a la date promise ou avant ET quantites distribuees >= quantites commandees ; non distribuee et echue = 0.
+   - Cout par commande    coûts saisis dans le dashboard / commandes expediees de la periode (aucun cout dans la base).
+  Date d'extraction  date la plus recente des commandes / preparations / chargements / distributions.
+  OTD                commande annulee exclue ; distribuee : Distribution_Date <= Delivery_Date ; non distribuee et date promise passee : 0.
+  Cycle              Distribution_Date - Order_Date ; etapes : commande->preparation, preparation->chargement, chargement->distribution.
+  Observation a traiter  statut different de "Cloturee" ; age = extraction - date de l'observation.
+  Emplacement        sature >= 85 % de Capacity ; sous-utilise < 20 %. Occupation = Current_Stock / Capacity.
+  Ligne de stock     Rupture : quantite 0 avec Min_Level > 0 ; Vide : quantite 0 sans seuil ; Sous min : 0 < quantite < Min_Level ; Surstock : > Max_Level.
+  Valeur du stock    somme Price x Stock_Quantity (tb_Articles), distincte des quantites par emplacement (tb_Bin_Article).
+  Objectifs (OTD 95 %, preparation <= 1 j, sous-min <= 5 %...) : constante OBJ en tete du <script> du gabarit.

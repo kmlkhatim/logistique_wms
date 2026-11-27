@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestion logistique – KPI</title>
+<style>
+:root{
+  --bg:#060a13; --panel:#0e1627; --panel2:#131e35; --line:rgba(255,255,255,.08); --ink:#e8eefb; --muted:#8fa2c4;
+  --cy:#22d3ee; --vi:#a78bfa; --am:#fbbf24; --ro:#fb7185; --gr:#34d399; --bl:#60a5fa;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;overflow:hidden;
+  background:radial-gradient(60% 50% at 15% 0%,rgba(34,211,238,.13),transparent 70%) fixed,radial-gradient(50% 45% at 100% 100%,rgba(167,139,250,.16),transparent 70%) fixed,var(--bg)}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(80% 80% at 50% 40%,#000,transparent)}
+button,label{font:inherit;cursor:pointer}
+input[type=file]{display:none}
+.app{position:relative;z-index:1;display:grid;grid-template-columns:78px minmax(0,1fr);height:100vh}
+
+/* ===== menu d'icônes ===== */
+.rail{margin:12px 0 12px 12px;height:calc(100vh - 24px);background:linear-gradient(180deg,#101a30,#0b1324);border:1px solid var(--line);border-radius:22px;display:flex;flex-direction:column;align-items:center;padding:16px 0;box-shadow:0 0 30px rgba(34,211,238,.10);animation:slideIn .7s cubic-bezier(.2,.7,.2,1) backwards;position:relative;z-index:5}
+.rail .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--cy),var(--vi));display:grid;place-items:center;color:#06101f;margin-bottom:18px;box-shadow:0 0 18px rgba(34,211,238,.45)}
+.rail .menu{display:flex;flex-direction:column;gap:10px;align-items:center}
+.rail .menu.bottom{margin-top:auto}
+.rail .menu button,.rail label.rbtn{position:relative;width:46px;height:46px;border:0;border-radius:13px;background:transparent;color:#a9b8d6;display:grid;place-items:center;transition:background .2s,transform .15s,color .2s,box-shadow .2s}
+.rail .menu button:hover,.rail label.rbtn:hover{background:rgba(255,255,255,.08);color:#fff;transform:scale(1.07)}
+.rail .menu button.on{background:linear-gradient(135deg,rgba(34,211,238,.25),rgba(167,139,250,.25));color:#fff;box-shadow:0 0 0 1px rgba(34,211,238,.55) inset,0 0 18px rgba(34,211,238,.35)}
+.rail [data-tip]::after{content:attr(data-tip);position:absolute;left:calc(100% + 12px);top:50%;transform:translateY(-50%);background:#1b2a48;color:#fff;font-size:12px;padding:5px 10px;border-radius:7px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;border:1px solid var(--line)}
+.rail [data-tip]:hover::after{opacity:1}
+
+main{padding:12px 16px 12px 14px;display:flex;flex-direction:column;gap:10px;height:100vh;overflow:hidden;min-width:0}
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 22px;flex:none}
+.brand{font-size:10.5px;text-transform:uppercase;letter-spacing:.16em;color:var(--cy);font-weight:700}
+.top h1{margin:0;font-size:22px;line-height:1.15;letter-spacing:-.01em}
+.top .sub{color:var(--muted);font-size:12px}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-left:auto}
+.f{display:flex;flex-direction:column;gap:2px}
+.f span{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.f select{font:inherit;font-size:13px;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:5px 26px 5px 9px;min-width:130px;cursor:pointer;color-scheme:dark}
+.f select:focus{outline:2px solid var(--cy);outline-offset:1px}
+.srcbox{font-size:11.5px;line-height:1.35;color:var(--muted);text-align:right}.srcbox b{color:var(--ink)}
+.badge{display:inline-block;font-size:11px;padding:1px 8px;border-radius:10px;background:rgba(251,191,36,.16);color:var(--am);border:1px solid rgba(251,191,36,.4)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--gr);margin-right:6px;animation:pulse 1.8s infinite}
+#msg{color:var(--ro);font-weight:600}
+
+.page{display:none;flex-direction:column;gap:10px;flex:1;min-height:0}
+.page.on{display:flex;animation:fadeIn .5s ease-out}
+.nodata-msg{display:none;color:var(--muted);padding:40px;text-align:center}
+.page.nodata .nodata-msg{display:block}.page.nodata .kpis,.page.nodata .grid{display:none}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;flex:none}
+.kpi{--acc:var(--cy);position:relative;background:linear-gradient(160deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:14px;padding:9px 13px 9px;overflow:hidden;transition:transform .25s,box-shadow .25s;animation:rise .7s cubic-bezier(.2,.7,.2,1) backwards}
+.kpi::before{content:"";position:absolute;left:0;top:0;right:0;height:3px;background:linear-gradient(90deg,var(--acc),transparent)}
+.kpi::after{content:"";position:absolute;right:-28px;top:-28px;width:84px;height:84px;border-radius:50%;background:radial-gradient(var(--acc),transparent 70%);opacity:.16}
+.kpi.t1{--acc:var(--vi)}.kpi.t2{--acc:var(--am)}.kpi.t3{--acc:var(--bl)}
+.kpi.ok{--acc:var(--gr)}.kpi.bad{--acc:var(--ro)}
+.kpi:hover,.panel:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(34,211,238,.18)}
+.kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.kpi .v{font-size:26px;font-weight:750;letter-spacing:-.02em;line-height:1.15;color:#fff}
+.kpi.ok .v{color:var(--gr)}.kpi.bad .v{color:var(--ro)}
+.kpi .d{font-size:11px;color:var(--muted);line-height:1.3}
+
+/* panneaux */
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.panel{background:linear-gradient(160deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:14px;padding:10px 13px;display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;transition:transform .25s,box-shadow .25s;animation:rise .8s cubic-bezier(.2,.7,.2,1) backwards}
+.grid .panel:nth-child(2){animation-delay:.1s}.grid .panel:nth-child(3){animation-delay:.2s}.grid .panel:nth-child(4){animation-delay:.3s}.grid .panel:nth-child(5){animation-delay:.4s}
+.panel h2{font-size:13.5px;margin:0 0 2px;display:flex;align-items:center;gap:8px}
+.panel h2::before{content:"";width:4px;height:14px;border-radius:2px;background:linear-gradient(var(--cy),var(--vi))}
+.panel p{margin:0 0 4px;color:var(--muted);font-size:12px}
+.wide{grid-column:span 2}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-bottom:2px;min-height:15px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.cv{flex:1;min-height:0;position:relative}
+.cv.nodata canvas{display:none}
+.cv.nodata::after{content:attr(data-empty);position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);text-align:center;padding:0 12px}
+.tablewrap{flex:1;min-height:0;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:3px 7px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-size:10.5px;text-transform:uppercase;color:var(--cy);letter-spacing:.06em;position:sticky;top:0;background:#0f1a30}
+td.n,th.n{text-align:right}
+tbody tr{transition:background .2s}tbody tr:hover{background:rgba(34,211,238,.08)}
+td.r{color:var(--ro);font-weight:600}td.g{color:var(--gr)}td.a{color:var(--am)}
+td:last-child{white-space:normal}
+#t-st td:last-child,#t-cmd td:last-child{white-space:nowrap}
+#t-st td:nth-child(3){max-width:260px;overflow:hidden;text-overflow:ellipsis}#t-obs td:last-child{white-space:nowrap;max-width:330px;overflow:hidden;text-overflow:ellipsis}
+.empty{color:var(--muted);padding:20px;text-align:center}
+
+
+/* ===== cockpit : 4 processus, 10 KPI, feux tricolores ===== */
+.cockpit{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px}
+.procs{flex:1.6;min-height:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.proc{display:flex;flex-direction:column;gap:7px;min-height:0;background:linear-gradient(160deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:9px 10px;animation:rise .7s cubic-bezier(.2,.7,.2,1) backwards}
+.proc h3{margin:0;font-size:11.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--cy);display:flex;align-items:center;gap:8px}
+.proc h3 b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:7px;background:linear-gradient(135deg,var(--cy),var(--vi));color:#06101f;font-size:11px;letter-spacing:0}
+.tile{--rag:#64748b;flex:1;min-height:0;position:relative;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-left:6px solid var(--rag);padding:5px 10px;display:flex;flex-direction:column;justify-content:center;overflow:hidden;transition:transform .25s,box-shadow .25s;animation:rise .7s cubic-bezier(.2,.7,.2,1) backwards}
+.tile:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,.35)}
+.tile.g{--rag:#34d399}.tile.o{--rag:#fb923c}.tile.r{--rag:#fb7185}
+.tile .l{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding-right:84px;line-height:1.25}
+.tile .v{font-size:27px;font-weight:800;letter-spacing:-.02em;line-height:1.1;color:#fff}
+.tile.g .v{color:#34d399}.tile.o .v{color:#fb923c}.tile.r .v{color:#fb7185}
+.tile .d{font-size:10.5px;color:var(--muted);line-height:1.3}
+.tile .pill{position:absolute;top:6px;right:7px;font-size:9.5px;padding:1px 8px;border-radius:10px;font-weight:700;letter-spacing:.03em;background:rgba(100,116,139,.25);color:#cbd5e1}
+.tile.g .pill{background:rgba(52,211,153,.18);color:#34d399}.tile.o .pill{background:rgba(251,146,60,.2);color:#fb923c}.tile.r .pill{background:rgba(251,113,133,.2);color:#fb7185}
+.dbottom{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.alerts{display:flex;flex-direction:column;gap:5px;overflow:auto;flex:1;min-height:0}
+.al{display:flex;align-items:center;gap:10px;padding:5px 9px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid var(--line);cursor:pointer;transition:background .2s,transform .2s;font-size:12px}
+.al:hover{background:rgba(34,211,238,.1);transform:translateX(3px)}
+.al .n{min-width:34px;text-align:center;font-weight:800;font-size:14px;padding:1px 6px;border-radius:8px;background:rgba(100,116,139,.25)}
+.al.r .n{background:rgba(251,113,133,.2);color:#fb7185}.al.o .n{background:rgba(251,146,60,.2);color:#fb923c}.al.g .n{background:rgba(52,211,153,.18);color:#34d399}
+.al small{display:block;color:var(--muted);font-size:10.5px}
+.f input{font:inherit;font-size:13px;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:5px 9px;width:150px;color-scheme:dark}
+.f input:focus{outline:2px solid var(--cy);outline-offset:1px}
+
+@keyframes rise{from{opacity:0;transform:translateY(18px) scale(.98)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-24px)}}
+@keyframes fadeIn{from{opacity:0}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(52,211,153,.6)}100%{box-shadow:0 0 0 8px rgba(52,211,153,0)}}
+tbody tr.fade{animation:fadeIn .6s ease-out backwards}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+@media (max-height:820px) and (min-width:1001px){.tile .v{font-size:23px}.tile .d{font-size:10px}.kpi{padding:6px 12px}.kpi .v{font-size:23px}.kpis{gap:6px}.top h1{font-size:20px}}
+@media (max-width:1000px),(max-height:620px){
+  body{overflow:auto}.app{display:block;height:auto}
+  .rail{height:auto;margin:8px;flex-direction:row;padding:8px 14px;border-radius:16px}.rail .menu{flex-direction:row}.rail .menu.bottom{margin:0 0 0 auto}.rail .logo{display:none}.rail [data-tip]::after{display:none}
+  main{height:auto;overflow:visible}.page{flex:none}
+  .kpis{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}.grid{display:flex;flex-direction:column}
+  .procs{grid-template-columns:repeat(2,minmax(0,1fr))}.tile{min-height:92px}.dbottom{display:flex;flex-direction:column}
+  .panel{overflow:visible}.cv{flex:none;height:260px}.filters{margin-left:0}.srcbox{text-align:left}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<nav class="rail" aria-label="Menu">
+  <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 2 2 7v10l10 5 10-5V7zM12 4.2l6.9 3.4L12 11 5.1 7.6zM4 9.2l7 3.5v7.1l-7-3.5zm9 10.6v-7.1l7-3.5v7.1z"/></svg></div>
+  <div class="menu" id="tabs">
+    <button type="button" data-p="dash" class="on" data-tip="Pilotage entrepôt (10 KPI)" aria-label="Pilotage entrepôt"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 4a10 10 0 0 0-10 10c0 2 .6 3.800 1.600 5.300h16.800A10 10 0 0 0 12 4zm0 2a8 8 0 0 1 7.700 6H17a5 5 0 0 0-10 0H4.300A8 8 0 0 1 12 6zm1 5.500 3.500-3.200-4.300 5.800A2 2 0 1 1 10 12.500z"/></svg></button>
+    <button type="button" data-p="cmd" data-tip="Commandes &amp; service" aria-label="Commandes et service"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path fill-rule="evenodd" d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm1 4v2h8V7H8zm0 4v2h8v-2H8zm0 4v2h5v-2H8z"/></svg></button>
+    <button type="button" data-p="prep" data-tip="Préparation &amp; qualité" aria-label="Préparation et qualité"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 2l3 6.5 7 .9-5.2 4.8 1.4 7L12 17.8 5.8 21.2l1.4-7L2 9.4l7-.9z"/></svg></button>
+    <button type="button" data-p="trans" data-tip="Transport &amp; distribution" aria-label="Transport et distribution"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M2 6h12v9H2z"/><path d="M14 9h4.2L22 12.5V15h-8z"/><circle cx="7" cy="17.5" r="2.3"/><circle cx="17.5" cy="17.5" r="2.3"/></svg></button>
+    <button type="button" data-p="stock" data-tip="Stock &amp; entrepôts" aria-label="Stock et entrepôts"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 2l9 4.5L12 11 3 6.5z"/><path d="M3 8.6l8 4v8.6l-8-4z" opacity=".8"/><path d="M21 8.6l-8 4v8.6l8-4z" opacity=".6"/></svg></button>
+  </div>
+  <div class="menu bottom">
+    <label class="rbtn" data-tip="Charger les KPI (KPI_Logistique.xlsx)"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 3 6.5 8.5l1.4 1.4L11 6.8V16h2V6.8l3.1 3.1 1.4-1.4zM5 18v2h14v-2z"/></svg><input type="file" id="file" accept=".xlsx" multiple></label>
+    <button type="button" id="reset" data-tip="Réinitialiser" aria-label="Réinitialiser"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 5V2L7 6.5 12 11V8a5 5 0 1 1-5 5H5a7 7 0 1 0 7-8z"/></svg></button>
+  </div>
+</nav>
+<main>
+  <header class="top">
+    <div class="ttl"><div class="brand">Gestion logistique · WMS</div><h1 id="ptitle">Commandes &amp; service</h1><div class="sub" id="count"></div></div>
+    <div class="filters">
+      <label class="f"><span>Année</span><select id="lAnnee"></select></label>
+      <label class="f"><span>Mois</span><select id="lMois"></select></label>
+      <label class="f" id="gReg"><span>Région</span><select id="lReg"></select></label>
+      <label class="f" id="gEnt"><span>Entrepôt</span><select id="lEnt"></select></label>
+      <label class="f" id="gCost"><span>Coûts entrepôt (MAD)</span><input id="cost" type="number" min="0" step="1000" placeholder="période filtrée"></label>
+    </div>
+    <div class="srcbox"><span class="dot"></span><b id="srcName"></b><br>Extraction : <b id="refDate"></b> <span class="badge" id="sampleBadge">exemple</span><div id="msg"></div></div>
+  </header>
+
+  <section class="page on" data-p="dash">
+    <div class="nodata-msg">Aucune donnée.</div>
+    <div class="cockpit">
+      <div class="procs" id="procs"></div>
+      <div class="dbottom">
+        <div class="panel"><h2>OTIF par mois</h2><p>Livré à temps ET complet. Pointillés : seuils vert 95 % et orange 90 %.</p><div class="cv"><canvas id="c-d-otif"></canvas></div></div>
+        <div class="panel"><h2>Temps de cycle de commande</h2><p>Jours entre commande et départ en distribution, comparés au délai promis.</p><div class="legend"><span><i style="background:var(--cy)"></i>Cycle réel</span><span><i style="background:var(--am)"></i>Délai promis</span></div><div class="cv"><canvas id="c-d-cycle"></canvas></div></div>
+        <div class="panel"><h2>Alertes du jour</h2><p>État à la date d'extraction. Cliquez pour ouvrir le détail.</p><div class="alerts" id="alerts"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" data-p="cmd">
+    <div class="nodata-msg">Aucune commande.</div>
+    <div class="kpis" id="k-cmd"></div>
+    <div class="grid">
+      <div class="panel"><h2>Commandes par mois</h2><p>Nombre de commandes, par statut.</p><div class="legend" id="lg-cmd-mois"></div><div class="cv"><canvas id="c-cmd-mois"></canvas></div></div>
+      <div class="panel"><h2>OTD par mois</h2><p>Distribution partie au plus tard à la date promise. Pointillé = objectif.</p><div class="cv"><canvas id="c-cmd-otd"></canvas></div></div>
+      <div class="panel"><h2>Durée moyenne par étape</h2><p>Jours entre chaque étape du cycle commande → distribution.</p><div class="cv"><canvas id="c-cmd-etape"></canvas></div></div>
+      <div class="panel"><h2>Top 10 clients</h2><p>Nombre de commandes (hors annulées).</p><div class="cv"><canvas id="c-cmd-cli"></canvas></div></div>
+      <div class="panel wide"><h2>Commandes en retard</h2><p>Distribuées après la date promise, ou non distribuées et échues. Triées par retard.</p><div class="tablewrap" id="t-cmd"></div></div>
+    </div>
+  </section>
+
+  <section class="page" data-p="prep">
+    <div class="nodata-msg">Aucune préparation.</div>
+    <div class="kpis" id="k-prep"></div>
+    <div class="grid">
+      <div class="panel"><h2>Commandes préparées par préparateur</h2><p>Nombre de préparations (délai moyen dans l'infobulle).</p><div class="cv"><canvas id="c-prep-user"></canvas></div></div>
+      <div class="panel"><h2>Observations par mois</h2><p>Nombre d'observations, par catégorie.</p><div class="legend" id="lg-prep-mois"></div><div class="cv"><canvas id="c-prep-mois"></canvas></div></div>
+      <div class="panel"><h2>Observations : catégorie et statut</h2><p>Clôturées, en cours ou ouvertes.</p><div class="legend" id="lg-prep-cat"></div><div class="cv"><canvas id="c-prep-cat"></canvas></div></div>
+      <div class="panel"><h2>Délai de préparation</h2><p>Nombre de commandes selon les jours entre commande et préparation.</p><div class="cv"><canvas id="c-prep-delai"></canvas></div></div>
+      <div class="panel wide"><h2>Observations à traiter</h2><p>Non clôturées, les plus anciennes d'abord.</p><div class="tablewrap" id="t-obs"></div></div>
+    </div>
+  </section>
+
+  <section class="page" data-p="trans">
+    <div class="nodata-msg">Aucune distribution.</div>
+    <div class="kpis" id="k-trans"></div>
+    <div class="grid">
+      <div class="panel"><h2>Distributions par région</h2><p>Nombre de distributions.</p><div class="cv"><canvas id="c-tr-reg"></canvas></div></div>
+      <div class="panel"><h2>OTD par région</h2><p>Départ à la date promise ou avant. Pointillé = objectif.</p><div class="cv"><canvas id="c-tr-otd"></canvas></div></div>
+      <div class="panel"><h2>Chargements par camion</h2><p>Les 12 camions les plus utilisés.</p><div class="cv"><canvas id="c-tr-camion"></canvas></div></div>
+      <div class="panel"><h2>Distributions par mois</h2><p>Nombre de distributions.</p><div class="cv"><canvas id="c-tr-mois"></canvas></div></div>
+      <div class="panel wide"><h2>Destinations</h2><p>Les 10 destinations les plus livrées, avec la part de départs en retard.</p><div class="tablewrap" id="t-tr"></div></div>
+    </div>
+  </section>
+
+  <section class="page" data-p="stock">
+    <div class="nodata-msg">Aucune donnée de stock.</div>
+    <div class="kpis" id="k-stock"></div>
+    <div class="grid">
+      <div class="panel"><h2>Occupation des emplacements</h2><p>Taux moyen par entrepôt. Repères : 20 % et 85 %.</p><div class="cv"><canvas id="c-st-occ"></canvas></div></div>
+      <div class="panel"><h2>Santé du stock par entrepôt</h2><p>Lignes article / emplacement par statut.</p><div class="legend" id="lg-st-statut"></div><div class="cv"><canvas id="c-st-statut"></canvas></div></div>
+      <div class="panel"><h2>Zones les plus chargées</h2><p>Occupation moyenne des emplacements, 10 premières zones. Repère : 85 %.</p><div class="cv"><canvas id="c-st-zone"></canvas></div></div>
+      <div class="panel"><h2>Top 10 articles par valeur de stock</h2><p>Prix × quantité en stock, en milliers de <span id="dv"></span>.</p><div class="cv"><canvas id="c-st-art"></canvas></div></div>
+      <div class="panel wide"><h2>Lignes à réalimenter</h2><p>Ruptures et sous-minimum les plus valorisés (manque = minimum − quantité).</p><div class="tablewrap" id="t-st"></div></div>
+    </div>
+  </section>
+</main>
+</div>
+
+<!--CHARTJS-->
+<script id="sample" type="application/json">{"commandes":[],"observations":[],"receptions":[],"emplacements":[],"stock_agg":[],"stock_crit":[],"articles":{},"ref":"2026-01-01"}</script>
+<script>
+"use strict";
+const OBJ = { otd:95, livraison:95, prep:1, sousMin:5, saturation:85 };      // objectifs des pages de détail
+// Seuils des feux tricolores du pilotage : [vert, orange, plus_haut_est_mieux] ; null = pas d'objectif défini (tuile grise)
+const T = { otif:[95, 90, true], precision:[99, 97, true], fiab:[98, 95, true], recep:[98, 95, true], dock:[1, 2, false], occ:[80, 85, false], rotation:null, prod:null };
+const DEVISE = "MAD";
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const COL = { cy:"#22d3ee", vi:"#a78bfa", am:"#fbbf24", ro:"#fb7185", gr:"#34d399", bl:"#60a5fa", muted:"#9fb0cc", grid:"rgba(255,255,255,.09)", ink:"#e8eefb" };
+const PAL = [COL.cy, COL.vi, COL.am, COL.bl, COL.gr, COL.ro];
+const MC = { "livree":COL.cy, "annulee":COL.ro, "expediee":COL.am, "en cours":COL.vi, "en preparation":COL.bl, "terminee":COL.cy, "in progress":COL.am,
+  "cloturee":COL.gr, "ouverte":COL.ro, "ok":COL.gr, "sous min":COL.am, "rupture":COL.ro, "surstock":COL.vi, "vide":"#64748b",
+  "casse":COL.ro, "qualite":COL.vi, "ecart de stock":COL.am, "retard":COL.bl, "info":"#64748b" };
+const MN = ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+const flat = s => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const colOf = (c, i) => MC[flat(c)] || PAL[i % PAL.length];
+
+let D = { commandes:[], observations:[], receptions:[], emplacements:[], stock_agg:[], stock_crit:[], articles:{} }, REF = "", SAMPLE = true, F = { annee:"", mois:"", reg:"", ent:"" }, PAGE = "dash", COST = null;
+
+/* ---------- données ---------- */
+function loadSample(){
+  const s = JSON.parse($("sample").textContent);
+  D = { commandes:s.commandes || [], observations:s.observations || [], receptions:s.receptions || [], emplacements:s.emplacements || [],
+        stock_agg:s.stock_agg || [], stock_crit:s.stock_crit || [], articles:s.articles || {} };
+  REF = s.ref; SAMPLE = s.sample !== false;
+  $("srcName").textContent = s.source || "données d'exemple intégrées";
+}
+const isoDate = d => new Date(d.getTime() + 12 * 3600e3).toISOString().slice(0, 10);
+async function handleFiles(files){
+  $("msg").textContent = "";
+  try{
+    if (!window.XLSX){ await new Promise((ok, ko) => { const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"; s.onload = ok; s.onerror = () => ko(new Error("Bibliothèque Excel (SheetJS) non chargée : internet requis.")); document.head.appendChild(s); }); }
+    const wb = XLSX.read(await files[0].arrayBuffer(), { cellDates:true }), get = n => wb.SheetNames.includes(n) ? XLSX.utils.sheet_to_json(wb.Sheets[n], { defval:null, raw:true }).map(r => { for (const k in r) if (r[k] instanceof Date) r[k] = isoDate(r[k]); return r; }) : [];
+    const c = get("KPI_Commandes");
+    if (!c.length) throw new Error("Feuille KPI_Commandes introuvable (fichier attendu : Export/KPI_Logistique.xlsx).");
+    D.commandes = c; D.observations = get("KPI_Observations"); D.receptions = get("KPI_Receptions"); D.emplacements = get("KPI_Emplacements");
+    const st = get("KPI_Stock_Emplacement"), g = {};
+    st.forEach(r => { const k = r.Entrepot + "|" + r.Statut_Stock; g[k] = g[k] || { Entrepot:r.Entrepot, Statut_Stock:r.Statut_Stock, n:0, valeur:0 }; g[k].n++; g[k].valeur += r.Valeur || 0; });
+    D.stock_agg = Object.values(g);
+    D.stock_crit = st.filter(r => ["Rupture", "Sous min"].includes(r.Statut_Stock)).sort((a, b) => b.Valeur - a.Valeur).slice(0, 400);
+    SAMPLE = false; REF = new Date().toISOString().slice(0, 10); $("srcName").textContent = files[0].name; start();
+  } catch(e){ $("msg").textContent = e.message; }
+}
+$("file").addEventListener("change", e => e.target.files.length && handleFiles([...e.target.files]));
+$("reset").addEventListener("click", () => { loadSample(); start(); $("msg").textContent = ""; });
+
+/* ---------- outils ---------- */
+const sum = (a, f) => a.reduce((s, r) => s + (f(r) || 0), 0);
+const avg = (a, f) => { const v = a.filter(r => f(r) != null); return v.length ? sum(v, f) / v.length : null; };
+const ratio = (rows, k) => { const v = rows.filter(r => r[k] != null); return v.length ? 100 * sum(v, r => r[k]) / v.length : null; };
+const fr = (v, d = 0) => v == null ? "n/d" : Number(v).toLocaleString("fr-FR", { minimumFractionDigits:d, maximumFractionDigits:d });
+const pct = v => v == null ? "n/d" : fr(v, 1) + " %";
+const jr = v => v == null ? "n/d" : fr(v, 2) + " j";
+const kmad = v => fr(v / 1000) + " k" + DEVISE;
+const dateFR = s => s ? String(s).split("-").reverse().join("/") : "";
+const uniq = a => [...new Set(a.filter(x => x != null && x !== ""))].sort();
+const inY = r => !F.annee || String(r.Annee) === F.annee;
+const inP = r => inY(r) && (!F.mois || String(r.Mois).slice(5, 7) === F.mois);
+const byReg = r => !F.reg || r.Region === F.reg;
+const byEnt = r => !F.ent || r.Entrepot === F.ent;
+const K = (l, n, f, d, s = "") => ({ l, n, f, d, s, v: n == null ? "n/d" : f(n) });
+const goal = (v, obj, higher = true) => v == null ? "" : ((higher ? v >= obj : v <= obj) ? "ok" : "bad");
+const monthLabel = (m, multi) => MN[+m.slice(5, 7) - 1] + (multi ? " " + m.slice(2, 4) : "");
+const monthsOf = rows => uniq(rows.map(r => r.Mois));
+const tbl = (head, body) => `<table><thead><tr>${head.map(h => `<th class="${h[1] || ""}">${esc(h[0])}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`;
+const legend = (id, labels, colors) => { $(id).innerHTML = labels.map((l, i) => `<span><i style="background:${colors[i]}"></i>${esc(l)}</span>`).join(""); };
+
+/* ---------- Chart.js ---------- */
+const CH = {};
+const hasChart = typeof Chart !== "undefined";
+if (hasChart){
+  Chart.defaults.font.family = 'system-ui,-apple-system,"Segoe UI",Arial,sans-serif'; Chart.defaults.font.size = 11; Chart.defaults.color = COL.muted;
+  Chart.defaults.plugins.legend.display = false;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) Chart.defaults.animation = false; else { Chart.defaults.animation.duration = 900; Chart.defaults.animation.easing = "easeOutQuart"; }
+  Chart.register({ id:"targetLine", afterDatasetsDraw(chart, args, o){
+    if (!o || !o.values || !o.values.length) return;
+    const { ctx, chartArea, scales } = chart, horiz = chart.options.indexAxis === "y";
+    ctx.save(); ctx.setLineDash([5, 4]); ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.lineWidth = 1;
+    o.values.forEach(v => { const p = (horiz ? scales.x : scales.y).getPixelForValue(v); ctx.beginPath();
+      if (horiz){ ctx.moveTo(p, chartArea.top); ctx.lineTo(p, chartArea.bottom); } else { ctx.moveTo(chartArea.left, p); ctx.lineTo(chartArea.right, p); } ctx.stroke(); });
+    ctx.restore(); } });
+  Chart.register({ id:"valueLabels", afterDatasetsDraw(chart, args, o){
+    if (!o || !o.show) return;
+    const { ctx } = chart, horiz = chart.options.indexAxis === "y";
+    ctx.save(); ctx.font = "600 11px system-ui,Arial,sans-serif"; ctx.fillStyle = COL.ink;
+    chart.data.datasets.forEach((ds, di) => { const meta = chart.getDatasetMeta(di); if (meta.hidden) return;
+      meta.data.forEach((el, i) => { const v = ds.data[i]; if (v == null) return; const t = o.fmt ? o.fmt(v) : String(v);
+        if (horiz){ ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(t, el.x + 6, el.y); } else { ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.fillText(t, el.x, el.y - 4); } }); });
+    ctx.restore(); } });
+}
+function mk(id, cfg, hasData, empty){
+  const cv = $(id), box = cv.parentElement;
+  if (CH[id]){ CH[id].destroy(); delete CH[id]; }
+  box.classList.toggle("nodata", !hasData); box.dataset.empty = empty || "Aucune donnée pour ce filtre";
+  if (!hasData || !hasChart) return;
+  CH[id] = new Chart(cv, cfg);
+}
+function barCfg(o){
+  const horiz = !!o.h;
+  const vAxis = Object.assign({ min:o.min ?? 0, grid:{ color:COL.grid }, border:{ display:false }, stacked:!!o.stack, ticks:{} }, o.max != null ? { max:o.max } : {});
+  if (o.tick) vAxis.ticks.callback = o.tick;
+  const cAxis = { grid:{ display:false }, stacked:!!o.stack, ticks:{ maxRotation:0, autoSkip:!horiz, maxTicksLimit:14, font:{ size:horiz ? 10 : 11 } } };
+  return { type:"bar",
+    data:{ labels:o.labels, datasets:o.sets.map(s => ({ label:s.label, data:s.data, backgroundColor:s.colors || s.color, borderRadius:o.stack ? 0 : 5, maxBarThickness:o.thick || (horiz ? 18 : 34) })) },
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis:horiz ? "y" : "x", layout:{ padding:{ top:14, right:horiz ? 50 : 8 } },
+      scales:horiz ? { x:vAxis, y:cAxis } : { x:cAxis, y:vAxis },
+      plugins:{ legend:{ display:false }, targetLine:{ values:o.target || [] }, valueLabels:{ show:!!o.vals, fmt:o.fmt }, tooltip:{ callbacks:o.tip ? { label:o.tip } : {} } } } };
+}
+function lineCfg(o){
+  return { type:"line",
+    data:{ labels:o.labels, datasets:o.sets.map(s => ({ label:s.label, data:s.data, borderColor:s.color, backgroundColor:s.color, borderWidth:2.5, pointRadius:2.5, pointHoverRadius:5, tension:.25, spanGaps:true })) },
+    options:{ responsive:true, maintainAspectRatio:false, layout:{ padding:{ top:14, right:14 } },
+      scales:{ x:{ grid:{ display:false }, ticks:{ maxRotation:0, autoSkip:true, maxTicksLimit:12 } }, y:Object.assign({ min:o.min ?? 0, grid:{ color:COL.grid }, border:{ display:false } }, o.max != null ? { max:o.max } : {}) },
+      plugins:{ legend:{ display:false }, targetLine:{ values:o.target || [] }, tooltip:{ callbacks:o.tip ? { label:o.tip } : {} } } } };
+}
+function stacked(rows, keyFn, catFn, labels, order){
+  const cats = uniq(rows.map(catFn)).sort((a, b) => { const ia = order ? order.indexOf(a) : -1, ib = order ? order.indexOf(b) : -1; return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || String(a).localeCompare(b); });
+  const colors = cats.map((c, i) => colOf(c, i));
+  return { cats, colors, sets:cats.map((c, i) => ({ label:c, color:colors[i], data:labels.map(l => rows.filter(r => keyFn(r) === l && catFn(r) === c).length) })) };
+}
+
+/* ---------- KPI animés ---------- */
+let KP = [];
+function showKpis(id, list){
+  KP = list;
+  $(id).innerHTML = list.map((k, i) => `<div class="kpi t${i % 4} ${k.s}" style="animation-delay:${i * 70}ms"><div class="l">${esc(k.l)}</div><div class="v" data-i="${i}">${esc(k.v)}</div><div class="d">${esc(k.d)}</div></div>`).join("");
+}
+function countUp(){
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  document.querySelectorAll(".page.on .kpi .v, .page.on .tile .v").forEach(el => {
+    const k = KP[+el.dataset.i]; if (!k || k.n == null) return;
+    const t0 = performance.now() + el.dataset.i * 70, dur = 900; el.textContent = k.f(0);
+    const step = now => { const p = Math.max(0, Math.min(1, (now - t0) / dur)), e = 1 - Math.pow(1 - p, 3); el.textContent = k.f(k.n * e); if (p < 1) requestAnimationFrame(step); else el.textContent = k.v; };
+    requestAnimationFrame(step);
+  });
+}
+
+/* =================== Page 0 : Pilotage entrepôt (10 KPI, 4 processus) =================== */
+const RAGTXT = { g:"Conforme", o:"À surveiller", r:"Critique", n:"Objectif à fixer" };
+function rag(v, th){ if (v == null) return ""; if (!th) return "n"; const [ok, warn, hi] = th; return hi ? (v >= ok ? "g" : v >= warn ? "o" : "r") : (v <= ok ? "g" : v <= warn ? "o" : "r"); }
+function showProcs(cols){
+  KP = [];
+  $("procs").innerHTML = cols.map((c, ci) => `<div class="proc" style="animation-delay:${ci * 90}ms"><h3><b>${ci + 1}</b>${esc(c.name)}</h3>${c.tiles.map(k => { const i = KP.push(k) - 1;
+    return `<div class="tile ${k.s || "n"}" style="animation-delay:${i * 60}ms"><div class="l">${esc(k.l)}</div><div class="v" data-i="${i}">${esc(k.v)}</div><div class="d">${esc(k.d)}</div><span class="pill">${RAGTXT[k.s || "n"]}</span></div>`; }).join("")}</div>`).join("");
+}
+function pgDash(){
+  const rows = D.commandes.filter(inP), prp = rows.filter(r => r.Preparateur), rc = D.receptions.filter(r => inP(r) && byEnt(r)), emp = D.emplacements.filter(byEnt), A = D.articles || {};
+  $("count").textContent = `${fr(rows.length)} commandes · ${fr(rc.length)} réceptions · ${fr(emp.length)} emplacements`;
+  // Réception
+  const valRc = rc.filter(r => r.Delai_Dock_Stock_j != null), dock = avg(valRc, r => r.Delai_Dock_Stock_j), recep = ratio(rc, "Flag_Valide");
+  // Stockage
+  const occ = emp.length ? 100 * avg(emp, r => r.Taux_Occupation) : null, sat = emp.filter(r => r.Statut_Emplacement === "Sature").length;
+  const fiab = ratio(prp, "Flag_Fiabilite");
+  const lim = D.commandes.length ? new Date(new Date(REF + "T12:00:00") - 365 * 864e5).toISOString().slice(0, 10) : "", sorties = sum(D.commandes.filter(r => r.Statut !== "Annulee" && r.Date_Commande > lim), r => r.Valeur_Commande);
+  const rot = A.valeur_totale ? sorties / A.valeur_totale : null;
+  // Préparation
+  const g = {}; prp.forEach(r => { const k = r.Preparateur + "|" + r.Date_Preparation; g[k] = (g[k] || 0) + (r.Nb_Lignes || 0); });
+  const prod = Object.keys(g).length ? sum(Object.values(g), x => x) / Object.keys(g).length : null, prec = ratio(prp, "Flag_Precision");
+  // Expédition
+  const otif = ratio(rows, "Flag_OTIF"), otd = ratio(rows, "Flag_OTD"), inf = ratio(rows, "In_Full"), cyc = avg(rows, r => r.Cycle_j), promis = avg(rows, r => r.Delai_Promis_j);
+  const exp = rows.filter(r => r.Date_Distribution).length, cout = COST != null && exp ? COST / exp : null;
+  const att = rc.filter(r => r.Flag_Valide === 0);
+  showProcs([
+    { name:"Réception", tiles:[
+      K("Délai dock-to-stock", dock, jr, `objectif ≤ ${T.dock[0]} j · mesuré en jours (dates seules)`, rag(dock, T.dock)),
+      K("Réceptions validées (proxy conformité)", recep, pct, `${fr(att.length)} en attente · ${fr(rc.length)} réceptions · objectif ≥ ${T.recep[0]} %`, rag(recep, T.recep))] },
+    { name:"Stockage", tiles:[
+      K("Taux d'occupation", occ, pct, `${fr(sat)} emplacements ≥ ${OBJ.saturation} % · seuil critique > ${T.occ[1]} %`, rag(occ, T.occ)),
+      K("Fiabilité du stock (proxy)", fiab, pct, `préparations sans écart de stock · objectif ≥ ${T.fiab[0]} %`, rag(fiab, T.fiab)),
+      K("Rotation du stock (12 mois)", rot, v => fr(v, 2) + " tours", `sorties ${fr(sorties / 1e6, 1)} M / stock ${fr((A.valeur_totale || 0) / 1e6, 0)} M ${DEVISE} · objectif à fixer`, rag(rot, T.rotation))] },
+    { name:"Préparation", tiles:[
+      K("Productivité picking", prod, v => fr(v, 1) + " lignes", "par préparateur et par jour d'activité (pas d'heures) · objectif à fixer", rag(prod, T.prod)),
+      K("Précision de préparation", prec, pct, `sans casse, défaut qualité ni écart · objectif ≥ ${T.precision[0]} %`, rag(prec, T.precision))] },
+    { name:"Expédition", tiles:[
+      K("Taux de service OTIF", otif, pct, `à temps ET complet · OTD ${pct(otd)} · In Full ${pct(inf)}`, rag(otif, T.otif)),
+      K("Temps de cycle de commande", cyc, jr, `délai promis ${jr(promis)} · vert si ≤ promis`, promis == null ? "" : rag(cyc, [promis, promis + 1, false])),
+      K("Coût logistique par commande expédiée", cout, v => fr(v, 2) + " " + DEVISE, COST == null ? "saisir les coûts de la période en haut de page" : `${fr(COST)} ${DEVISE} / ${fr(exp)} commandes expédiées`, cout == null ? "" : "n")] }
+  ]);
+  const base = D.commandes.filter(inY), months = monthsOf(base).filter(m => m < REF.slice(0, 7) && base.filter(r => r.Mois === m && r.Flag_OTIF != null).length >= 10), multi = new Set(months.map(m => m.slice(0, 4))).size > 1, lab = months.map(m => monthLabel(m, multi));
+  mk("c-d-otif", lineCfg({ labels:lab, sets:[{ label:"OTIF", data:months.map(m => ratio(base.filter(r => r.Mois === m), "Flag_OTIF")), color:COL.cy }], min:50, max:100, target:T.otif.slice(0, 2), tip:c => `OTIF : ${pct(c.parsed.y)}` }), months.length > 0);
+  mk("c-d-cycle", lineCfg({ labels:lab, sets:[{ label:"Cycle réel", data:months.map(m => avg(base.filter(r => r.Mois === m), r => r.Cycle_j)), color:COL.cy }, { label:"Délai promis", data:months.map(m => avg(base.filter(r => r.Mois === m), r => r.Delai_Promis_j)), color:COL.am }], tip:c => `${c.dataset.label} : ${jr(c.parsed.y)}` }), months.length > 0);
+  const ruptures = sum(D.stock_agg.filter(r => byEnt(r) && r.Statut_Stock === "Rupture"), r => r.n), obs = D.observations.filter(r => r.Statut !== "Cloturee");
+  const late = D.commandes.filter(r => r.Flag_OTD === 0 && !r.Date_Distribution), maxAtt = att.length ? Math.max(...att.map(r => r.Age_Attente_j || 0)) : 0;
+  const al = [
+    ["cmd", late.length, "Commandes en retard non distribuées", "date promise dépassée", late.length ? "r" : "g"],
+    ["stock", sat, `Emplacements saturés (≥ ${OBJ.saturation} %)`, "risque de blocage du rangement", sat ? "o" : "g"],
+    ["stock", ruptures, "Ruptures d'emplacement", "quantité 0 avec seuil minimum", ruptures ? "r" : "g"],
+    ["prep", obs.length, "Observations de préparation à traiter", obs.length ? `la plus ancienne : ${fr(Math.max(...obs.map(r => r.Age_j || 0)))} j` : "tout est clôturé", obs.length ? "o" : "g"],
+    ["stock", att.length, "Réceptions en attente de mise en stock", att.length ? `la plus ancienne : ${fr(maxAtt)} j` : "aucune", att.length ? "o" : "g"]
+  ];
+  $("alerts").innerHTML = al.map(a => `<div class="al ${a[4]}" data-go="${a[0]}"><span class="n">${fr(a[1])}</span><span>${esc(a[2])}<small>${esc(a[3])}</small></span></div>`).join("");
+  $("alerts").querySelectorAll(".al").forEach(e => e.onclick = () => { PAGE = e.dataset.go; render(); });
+}
+
+/* =================== Page 1 : Commandes & service =================== */
+function pgCmd(){
+  const rows = D.commandes.filter(r => inP(r) && byReg(r));
+  $("count").textContent = fr(rows.length) + " commandes";
+  const ann = rows.filter(r => r.Statut === "Annulee"), act = rows.filter(r => r.Statut !== "Annulee"), liv = rows.filter(r => r.Statut === "Livree");
+  const otd = ratio(rows, "Flag_OTD"), tl = act.length ? 100 * liv.length / act.length : null;
+  const late = rows.filter(r => r.Flag_OTD === 0 && !r.Date_Distribution);
+  const cyc = avg(rows, r => r.Cycle_j), prep = avg(rows, r => r.Delai_Prep_j);
+  showKpis("k-cmd", [
+    K("Commandes", rows.length, v => fr(v), `${fr(ann.length)} annulées (${pct(rows.length ? 100 * ann.length / rows.length : null)})`),
+    K("Taux de livraison", tl, pct, `${fr(liv.length)} livrées sur ${fr(act.length)} commandes actives · objectif ${OBJ.livraison} %`, goal(tl, OBJ.livraison)),
+    K("OTD (départ à la date promise)", otd, pct, `${fr(rows.filter(r => r.Flag_OTD != null).length)} commandes évaluées · objectif ${OBJ.otd} %`, goal(otd, OBJ.otd)),
+    K("Cycle commande → distribution", cyc, jr, `délai promis moyen ${jr(avg(rows, r => r.Delai_Promis_j))}`),
+    K("Délai de préparation", prep, jr, `objectif ≤ ${OBJ.prep} j`, goal(prep, OBJ.prep, false)),
+    K("Préparation → chargement", avg(rows, r => r.Delai_Charg_j), jr, `chargement → distribution ${jr(avg(rows, r => r.Delai_Dist_j))}`),
+    K("En retard non distribuées", late.length, v => fr(v), "date promise dépassée à la date d'extraction", late.length ? "bad" : "ok"),
+    K("Quantités commandées", sum(rows, r => r.Qte), v => fr(v), `${fr(sum(rows, r => r.Nb_Lignes))} lignes · ${fr(avg(rows, r => r.Nb_Lignes), 1)} par commande`)
+  ]);
+  const base = D.commandes.filter(r => inY(r) && byReg(r)), months = monthsOf(base), multi = new Set(months.map(m => m.slice(0, 4))).size > 1, lab = months.map(m => monthLabel(m, multi));
+  const s = stacked(base, r => r.Mois, r => r.Statut, months, ["Livree", "Expediee", "En cours", "En preparation", "Annulee"]);
+  legend("lg-cmd-mois", s.cats, s.colors);
+  mk("c-cmd-mois", barCfg({ stack:true, labels:lab, sets:s.sets, tip:c => `${c.dataset.label} : ${c.parsed.y}` }), base.length > 0);
+  const om = months.filter(m => m < REF.slice(0, 7) && base.filter(r => r.Mois === m && r.Flag_OTD != null).length >= 10);      // mois trop peu fournis (extraction en cours de mois) écartés
+  mk("c-cmd-otd", lineCfg({ labels:om.map(m => monthLabel(m, multi)), sets:[{ label:"OTD", data:om.map(m => ratio(base.filter(r => r.Mois === m), "Flag_OTD")), color:COL.cy }], min:50, max:100, target:[OBJ.otd], tip:c => `OTD : ${pct(c.parsed.y)}` }), om.length > 0);
+  const et = [["Commande → préparation", avg(rows, r => r.Delai_Prep_j)], ["Préparation → chargement", avg(rows, r => r.Delai_Charg_j)], ["Chargement → distribution", avg(rows, r => r.Delai_Dist_j)], ["Cycle total", cyc], ["Délai promis", avg(rows, r => r.Delai_Promis_j)]].filter(x => x[1] != null);
+  mk("c-cmd-etape", barCfg({ h:true, labels:et.map(x => x[0]), sets:[{ label:"Jours", data:et.map(x => x[1]), colors:et.map((x, i) => i === 3 ? COL.am : i === 4 ? COL.vi : COL.cy) }], vals:true, fmt:v => fr(v, 2) + " j", tip:c => `${fr(c.parsed.x, 2)} j` }), et.length > 0);
+  const cl = uniq(act.map(r => r.Client)).map(c => ({ c, n:act.filter(r => r.Client === c).length })).sort((a, b) => b.n - a.n).slice(0, 10);
+  mk("c-cmd-cli", barCfg({ h:true, labels:cl.map(o => o.c), sets:[{ label:"Commandes", data:cl.map(o => o.n), color:COL.vi }], vals:true, fmt:v => String(v), tip:c => `${c.parsed.x} commandes` }), cl.length > 0);
+  const rd = rows.filter(r => r.Statut !== "Annulee" && ((r.Date_Distribution && r.Ecart_Prevu_j > 0) || (r.Flag_OTD === 0 && !r.Date_Distribution)))
+    .sort((a, b) => (b.Ecart_Prevu_j ?? 99) - (a.Ecart_Prevu_j ?? 99)).slice(0, 12);
+  $("t-cmd").innerHTML = rd.length ? tbl([["Commande"], ["Client"], ["Région"], ["Prévue"], ["Distribuée"], ["Écart (j)", "n"], ["Statut"]],
+    rd.map((r, i) => `<tr class="fade" style="animation-delay:${i * 50}ms"><td>${esc(r.Code_Commande)}</td><td>${esc(r.Client)}</td><td>${esc(r.Region || "—")}</td><td>${dateFR(r.Date_Livraison_Prevue)}</td><td>${r.Date_Distribution ? dateFR(r.Date_Distribution) : "—"}</td><td class="n r">${r.Date_Distribution ? "+" + r.Ecart_Prevu_j : "non partie"}</td><td>${esc(r.Statut)}</td></tr>`).join(""))
+    : '<div class="empty">Aucune commande en retard sur la période</div>';
+}
+
+/* =================== Page 2 : Préparation & qualité =================== */
+function pgPrep(){
+  const rows = D.commandes.filter(r => inP(r) && r.Preparateur), obs = D.observations.filter(inP);
+  $("count").textContent = `${fr(rows.length)} préparations · ${fr(obs.length)} observations`;
+  const fini = rows.length ? 100 * rows.filter(r => r.Statut_Prep === "Terminee").length / rows.length : null;
+  const open = obs.filter(r => r.Statut !== "Cloturee"), cat = c => obs.filter(r => r.Categorie === c).length;
+  const prep = avg(rows, r => r.Delai_Prep_j);
+  showKpis("k-prep", [
+    K("Commandes préparées", rows.length, v => fr(v), `${fr(uniq(rows.map(r => r.Preparateur)).length)} préparateurs`),
+    K("Préparations terminées", fini, pct, `${fr(rows.filter(r => r.Statut_Prep !== "Terminee").length)} encore en cours`),
+    K("Délai moyen de préparation", prep, jr, `objectif ≤ ${OBJ.prep} j`, goal(prep, OBJ.prep, false)),
+    K("Préparées le jour même", rows.length ? 100 * rows.filter(r => r.Delai_Prep_j === 0).length / rows.length : null, pct, "commande préparée à J+0"),
+    K("Observations", obs.length, v => fr(v), `${fr(rows.length ? 100 * obs.length / rows.length : null, 1)} pour 100 préparations`),
+    K("Observations à traiter", open.length, v => fr(v), open.length ? `âge moyen ${fr(avg(open, r => r.Age_j), 0)} j · ${fr(open.filter(r => r.Statut === "Ouverte").length)} ouvertes` : "tout est clôturé", open.length ? "bad" : "ok"),
+    K("Casse + qualité", cat("Casse") + cat("Qualite"), v => fr(v), `casse ${cat("Casse")} · qualité ${cat("Qualite")}`),
+    K("Écarts de stock + retards", cat("Ecart de stock") + cat("Retard"), v => fr(v), `écarts ${cat("Ecart de stock")} · retards ${cat("Retard")}`)
+  ]);
+  const us = uniq(rows.map(r => r.Preparateur)).map(u => { const x = rows.filter(r => r.Preparateur === u); return { u, n:x.length, d:avg(x, r => r.Delai_Prep_j) }; }).sort((a, b) => b.n - a.n);
+  mk("c-prep-user", barCfg({ h:true, labels:us.map(o => o.u), sets:[{ label:"Préparations", data:us.map(o => o.n), color:COL.cy }], vals:true, fmt:v => String(v), thick:12, tip:c => `${c.parsed.x} préparations · délai moyen ${jr(us[c.dataIndex].d)}` }), us.length > 0);
+  const base = D.observations.filter(inY), months = monthsOf(base), multi = new Set(months.map(m => m.slice(0, 4))).size > 1;
+  const s1 = stacked(base, r => r.Mois, r => r.Categorie, months, ["Casse", "Qualite", "Ecart de stock", "Retard", "Info"]);
+  legend("lg-prep-mois", s1.cats, s1.colors);
+  mk("c-prep-mois", barCfg({ stack:true, labels:months.map(m => monthLabel(m, multi)), sets:s1.sets, tip:c => `${c.dataset.label} : ${c.parsed.y}` }), base.length > 0);
+  const cats = uniq(obs.map(r => r.Categorie)), s2 = stacked(obs, r => r.Categorie, r => r.Statut, cats, ["Ouverte", "En cours", "Cloturee"]);
+  legend("lg-prep-cat", s2.cats, s2.colors);
+  mk("c-prep-cat", barCfg({ h:true, stack:true, labels:cats, sets:s2.sets, tip:c => `${c.dataset.label} : ${c.parsed.x}` }), obs.length > 0);
+  const dl = [0, 1, 2, 3].map(d => ({ l:d === 3 ? "3 j et +" : d + " j", n:rows.filter(r => d === 3 ? r.Delai_Prep_j >= 3 : r.Delai_Prep_j === d).length }));
+  mk("c-prep-delai", barCfg({ labels:dl.map(o => o.l), sets:[{ label:"Commandes", data:dl.map(o => o.n), colors:[COL.gr, COL.cy, COL.am, COL.ro] }], vals:true, fmt:v => fr(v), tip:c => `${fr(c.parsed.y)} commandes` }), rows.length > 0);
+  const old = open.slice().sort((a, b) => b.Age_j - a.Age_j).slice(0, 12);
+  $("t-obs").innerHTML = old.length ? tbl([["N°"], ["Commande"], ["Préparateur"], ["Catégorie"], ["Date"], ["Âge (j)", "n"], ["Statut"], ["Description"]],
+    old.map((r, i) => `<tr class="fade" style="animation-delay:${i * 50}ms"><td>${r.Observation_ID}</td><td>${esc(r.Code_Commande || "—")}</td><td>${esc(r.Preparateur || "—")}</td><td>${esc(r.Categorie)}</td><td>${dateFR(r.Date_Observation)}</td><td class="n ${r.Age_j > 365 ? "r" : ""}">${fr(r.Age_j)}</td><td class="${r.Statut === "Ouverte" ? "r" : "a"}">${esc(r.Statut)}</td><td>${esc(r.Description)}</td></tr>`).join(""))
+    : '<div class="empty">Aucune observation à traiter</div>';
+}
+
+/* =================== Page 3 : Transport & distribution =================== */
+function pgTrans(){
+  const rows = D.commandes.filter(r => inP(r) && byReg(r) && r.Date_Distribution);
+  $("count").textContent = fr(rows.length) + " distributions";
+  const trucks = uniq(rows.map(r => r.Camion)), regs = uniq(rows.map(r => r.Region)), dests = uniq(rows.map(r => r.Destination));
+  const retard = rows.filter(r => r.Ecart_Prevu_j > 0), top = regs.map(g => ({ g, n:rows.filter(r => r.Region === g).length })).sort((a, b) => b.n - a.n)[0];
+  const otd = ratio(rows.filter(r => r.Statut !== "Annulee"), "Flag_OTD");
+  showKpis("k-trans", [
+    K("Distributions", rows.length, v => fr(v), `${fr(dests.length)} destinations · ${fr(regs.length)} régions`),
+    K("Quantités distribuées", sum(rows, r => r.Qte), v => fr(v), `${fr(avg(rows, r => r.Qte), 0)} unités par distribution`),
+    K("Camions mobilisés", trucks.length, v => fr(v), `${fr(trucks.length ? rows.length / trucks.length : null, 1)} chargements par camion`),
+    K("Chargement → distribution", avg(rows, r => r.Delai_Dist_j), jr, "délai moyen entre chargement et départ distribution"),
+    K("OTD (départ à la date promise)", otd, pct, `objectif ${OBJ.otd} %`, goal(otd, OBJ.otd)),
+    K("Départs après la date promise", retard.length, v => fr(v), `retard moyen ${fr(avg(retard, r => r.Ecart_Prevu_j), 1)} j`, retard.length ? "bad" : "ok"),
+    K("Avance moyenne sur la date promise", avg(rows, r => -r.Ecart_Prevu_j), v => fr(v, 1) + " j", "positif = départ avant la date promise"),
+    K("Région principale", top ? top.n : null, v => fr(v), top ? `${top.g} (${pct(100 * top.n / rows.length)})` : "")
+  ]);
+  const rg = regs.map(g => { const x = rows.filter(r => r.Region === g); return { g, n:x.length, o:ratio(x.filter(r => r.Statut !== "Annulee"), "Flag_OTD") }; });
+  const r1 = rg.slice().sort((a, b) => b.n - a.n);
+  mk("c-tr-reg", barCfg({ h:true, labels:r1.map(o => o.g), sets:[{ label:"Distributions", data:r1.map(o => o.n), color:COL.cy }], vals:true, fmt:v => String(v), thick:14, tip:c => `${c.parsed.x} distributions` }), r1.length > 0);
+  const r2 = rg.filter(o => o.o != null).sort((a, b) => a.o - b.o);
+  mk("c-tr-otd", barCfg({ h:true, min:50, max:100, labels:r2.map(o => o.g), sets:[{ label:"OTD", data:r2.map(o => o.o), colors:r2.map(o => o.o < OBJ.otd ? COL.ro : COL.gr) }], target:[OBJ.otd], vals:true, fmt:pct, thick:14, tip:c => `${pct(c.parsed.x)}` }), r2.length > 0);
+  const cm = trucks.map(t => ({ t, n:rows.filter(r => r.Camion === t).length })).sort((a, b) => b.n - a.n).slice(0, 12);
+  mk("c-tr-camion", barCfg({ labels:cm.map(o => o.t), sets:[{ label:"Chargements", data:cm.map(o => o.n), color:COL.vi }], vals:true, fmt:v => String(v), tip:c => `${c.parsed.y} chargements` }), cm.length > 0);
+  const base = D.commandes.filter(r => inY(r) && byReg(r) && r.Date_Distribution), months = monthsOf(base), multi = new Set(months.map(m => m.slice(0, 4))).size > 1;
+  mk("c-tr-mois", lineCfg({ labels:months.map(m => monthLabel(m, multi)), sets:[{ label:"Distributions", data:months.map(m => base.filter(r => r.Mois === m).length), color:COL.am }], tip:c => `${c.parsed.y} distributions` }), base.length > 0);
+  const ds = dests.map(d => { const x = rows.filter(r => r.Destination === d); return { d, g:x[0].Region, n:x.length, q:sum(x, r => r.Qte), l:100 * x.filter(r => r.Ecart_Prevu_j > 0).length / x.length }; }).sort((a, b) => b.n - a.n).slice(0, 10);
+  $("t-tr").innerHTML = ds.length ? tbl([["Destination"], ["Région"], ["Distributions", "n"], ["Quantité", "n"], ["Départs en retard", "n"]],
+    ds.map((o, i) => `<tr class="fade" style="animation-delay:${i * 50}ms"><td>${esc(o.d)}</td><td>${esc(o.g)}</td><td class="n">${o.n}</td><td class="n">${fr(o.q)}</td><td class="n ${o.l > 100 - OBJ.otd ? "r" : "g"}">${pct(o.l)}</td></tr>`).join(""))
+    : '<div class="empty">Aucune distribution</div>';
+}
+
+/* =================== Page 4 : Stock & entrepôts =================== */
+function pgStock(){
+  const emp = D.emplacements.filter(byEnt), ag = D.stock_agg.filter(byEnt), crit = D.stock_crit.filter(byEnt);
+  $("count").textContent = `${fr(emp.length)} emplacements · ${fr(sum(ag, r => r.n))} lignes de stock`;
+  const n = s => sum(ag.filter(r => r.Statut_Stock === s), r => r.n), v = s => sum(ag.filter(r => r.Statut_Stock === s), r => r.valeur);
+  const gerees = sum(ag, r => r.n) - n("Vide"), sous = gerees ? 100 * (n("Sous min") + n("Rupture")) / gerees : null;
+  const occ = emp.length ? 100 * avg(emp, r => r.Taux_Occupation) : null, sat = emp.filter(r => r.Statut_Emplacement === "Sature").length, sub = emp.filter(r => r.Statut_Emplacement === "Sous-utilise").length;
+  const capa = sum(emp, r => r.Capacite), A = D.articles || {};
+  showKpis("k-stock", [
+    K("Valeur du stock (articles)", A.valeur_totale ?? null, x => fr(x / 1e6, 1) + " M " + DEVISE, `${fr(A.nb)} articles · ${fr(A.ruptures)} à stock zéro`),
+    K("Occupation des emplacements", occ, pct, `${fr(emp.length)} emplacements`),
+    K("Capacité utilisée", capa ? 100 * sum(emp, r => r.Stock_Actuel) / capa : null, pct, `${fr(sum(emp, r => r.Stock_Actuel))} sur ${fr(capa)} unités de capacité`),
+    K("Emplacements saturés", sat, x => fr(x), `≥ ${OBJ.saturation} % de leur capacité`, sat ? "bad" : "ok"),
+    K("Emplacements sous-utilisés", sub, x => fr(x), "< 20 % de leur capacité · gain de place possible"),
+    K("Lignes sous le minimum", sous, pct, `${fr(n("Sous min") + n("Rupture"))} sur ${fr(gerees)} lignes gérées · objectif ≤ ${OBJ.sousMin} %`, goal(sous, OBJ.sousMin, false)),
+    K("Ruptures d'emplacement", n("Rupture"), x => fr(x), "quantité 0 avec seuil minimum défini", n("Rupture") ? "bad" : "ok"),
+    K("Surstock (> maximum)", n("Surstock"), x => fr(x), `valeur ${kmad(v("Surstock"))}`)
+  ]);
+  const ents = uniq(D.emplacements.map(r => r.Entrepot)), eg = ents.filter(e => !F.ent || e === F.ent);
+  const oc = eg.map(e => ({ e, v:100 * avg(D.emplacements.filter(r => r.Entrepot === e), r => r.Taux_Occupation), s:D.emplacements.filter(r => r.Entrepot === e && r.Statut_Emplacement === "Sature").length }));
+  mk("c-st-occ", barCfg({ h:true, max:100, labels:oc.map(o => o.e), sets:[{ label:"Occupation", data:oc.map(o => o.v), colors:oc.map(o => o.v >= OBJ.saturation ? COL.ro : COL.cy) }], target:[20, OBJ.saturation], vals:true, fmt:pct, tip:c => `${pct(c.parsed.x)} · ${oc[c.dataIndex].s} emplacements saturés` }), oc.length > 0);
+  const order = ["OK", "Sous min", "Rupture", "Surstock", "Vide"];
+  const sets = order.map((s, i) => ({ label:s, color:colOf(s, i), data:eg.map(e => sum(D.stock_agg.filter(r => r.Entrepot === e && r.Statut_Stock === s), r => r.n)) }));
+  legend("lg-st-statut", order, sets.map(s => s.color));
+  mk("c-st-statut", barCfg({ h:true, stack:true, labels:eg, sets, tip:c => `${c.dataset.label} : ${fr(c.parsed.x)}` }), eg.length > 0);
+  const zs = uniq(emp.map(r => r.Zone)).map(z => { const x = emp.filter(r => r.Zone === z); return { z, v:100 * avg(x, r => r.Taux_Occupation), n:x.length }; }).sort((a, b) => b.v - a.v).slice(0, 10);
+  mk("c-st-zone", barCfg({ h:true, max:100, labels:zs.map(o => o.z), sets:[{ label:"Occupation", data:zs.map(o => o.v), colors:zs.map(o => o.v >= OBJ.saturation ? COL.ro : o.v >= 60 ? COL.am : COL.cy) }], target:[OBJ.saturation], vals:true, fmt:pct, thick:14, tip:c => `${pct(c.parsed.x)} (${zs[c.dataIndex].n} emplacements)` }), zs.length > 0);
+  const ta = (A.top || []).slice(0, 10);
+  $("dv").textContent = DEVISE;
+  mk("c-st-art", barCfg({ h:true, labels:ta.map(o => o.Article_Code), sets:[{ label:"Valeur", data:ta.map(o => o.Valeur / 1000), color:COL.vi }], vals:true, fmt:x => fr(x), thick:14, tip:c => `${ta[c.dataIndex].Article_Name} · ${fr(ta[c.dataIndex].Stock_Quantity)} ${ta[c.dataIndex].Unit} × ${fr(ta[c.dataIndex].Price, 2)} ${DEVISE}` }), ta.length > 0);
+  const li = crit.slice(0, 12);
+  $("t-st").innerHTML = li.length ? tbl([["Emplacement"], ["Entrepôt"], ["Article"], ["Quantité", "n"], ["Min", "n"], ["Manque", "n"], ["Valeur", "n"], ["Statut"]],
+    li.map((r, i) => `<tr class="fade" style="animation-delay:${i * 50}ms"><td>${esc(r.Code_Emplacement)}</td><td>${esc(r.Entrepot)}</td><td>${esc(r.Article_Code)} · ${esc(r.Article)}</td><td class="n">${fr(r.Quantite)}</td><td class="n">${fr(r.Min)}</td><td class="n r">${fr(r.Manque_Min)}</td><td class="n">${fr(r.Valeur)} ${DEVISE}</td><td class="${r.Statut_Stock === "Rupture" ? "r" : "a"}">${esc(r.Statut_Stock)}</td></tr>`).join(""))
+    : '<div class="empty">Aucune ligne critique</div>';
+}
+
+/* =================== Navigation =================== */
+const PAGES = { dash:{ fn:pgDash, has:() => D.commandes.length || D.emplacements.length }, cmd:{ fn:pgCmd, has:() => D.commandes.length }, prep:{ fn:pgPrep, has:() => D.commandes.length }, trans:{ fn:pgTrans, has:() => D.commandes.length }, stock:{ fn:pgStock, has:() => D.emplacements.length } };
+const PTITLE = { dash:"Pilotage entrepôt", cmd:"Commandes & service", prep:"Préparation & qualité", trans:"Transport & distribution", stock:"Stock & entrepôts" };
+const NOTES = { dash:"10 KPI sur les 4 processus : réception, stockage, préparation, expédition. Vert = objectif atteint, orange = à surveiller, rouge = critique, gris = objectif à fixer. Seuils modifiables dans la constante T.", cmd:"OTD : distribution partie au plus tard à la date de livraison promise ; commande annulée exclue ; non distribuée et échue = 0.", prep:"Délai = jours entre la date de commande et la date de préparation.", trans:"Distribution = commande chargée sur un camion puis planifiée par région.", stock:"Sous min : 0 < quantité < Min_Level. Rupture : quantité 0 avec seuil minimum. Saturé : occupation ≥ 85 %." };
+function render(){
+  document.querySelectorAll(".page").forEach(p => p.classList.toggle("on", p.dataset.p === PAGE));
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.p === PAGE));
+  $("gReg").style.display = PAGE === "cmd" || PAGE === "trans" ? "" : "none";
+  $("gEnt").style.display = PAGE === "stock" || PAGE === "dash" ? "" : "none";
+  $("gCost").style.display = PAGE === "dash" ? "" : "none";
+  $("ptitle").textContent = PTITLE[PAGE]; $("ptitle").title = NOTES[PAGE];
+  Object.keys(CH).forEach(id => { CH[id].destroy(); delete CH[id]; });
+  const pg = document.querySelector(`.page[data-p="${PAGE}"]`), ok = PAGES[PAGE].has() > 0;
+  pg.classList.toggle("nodata", !ok);
+  if (!hasChart) $("msg").textContent = "Chart.js introuvable : régénérez le fichier avec generer_logistique.py.";
+  if (ok) PAGES[PAGE].fn(); else $("count").textContent = "";
+  countUp();
+}
+function list(id, items, key){
+  const el = $(id);
+  el.innerHTML = items.map(([v, tx]) => `<option value="${esc(v)}"${F[key] === v ? " selected" : ""}>${esc(tx)}</option>`).join("");
+  el.onchange = () => { F[key] = el.value; render(); };
+}
+function start(){
+  F = { annee:"", mois:"", reg:"", ent:"" };
+  $("refDate").textContent = dateFR(REF); $("sampleBadge").style.display = SAMPLE ? "" : "none";
+  list("lAnnee", [["", "Toutes les années"], ...uniq([...D.commandes, ...D.receptions].map(r => r.Annee)).map(y => [String(y), String(y)])], "annee");
+  list("lMois", [["", "Tous les mois"], ...MN.map((n, i) => [String(i + 1).padStart(2, "0"), n])], "mois");
+  list("lReg", [["", "Toutes les régions"], ...uniq(D.commandes.map(r => r.Region)).map(x => [x, x])], "reg");
+  list("lEnt", [["", "Tous les entrepôts"], ...uniq(D.emplacements.map(r => r.Entrepot)).map(x => [x, x])], "ent");
+  render();
+}
+$("cost").addEventListener("input", e => { COST = e.target.value === "" ? null : Math.max(0, parseFloat(e.target.value)); if (PAGE === "dash") render(); });
+$("tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; PAGE = b.dataset.p; render(); });
+loadSample(); start();
+</script>
+</body>
+</html>
